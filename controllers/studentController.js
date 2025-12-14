@@ -1,141 +1,163 @@
-const CourseModel = require('../models/Course');
-const AssignmentModel = require('../models/Assignment');
-const SubmissionModel = require('../models/Submission');
-const GradeModel = require('../models/Grade');
+const Course = require('../models/Course');
+const Assignment = require('../models/Assignment');
+const Submission = require('../models/Submission');
+const Grade = require('../models/Grade');
 const { enrollments } = require('../config/database');
 
-const viewCourses = (requestObject, responseObject) => {
+/**
+ * View enrolled courses
+ */
+const viewCourses = (req, res) => {
   try {
-    responseObject.json({
+    res.json({
       success: true,
       message: "Courses fetched successfully",
       data: []
     });
-  } catch (errorObject) {
-    responseObject.status(500).json({
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: 'Failed to retrieve courses',
-      error: errorObject.message
+      error: error.message
     });
   }
 };
 
-const viewAssignments = (requestObject, responseObject) => {
+/**
+ * View assignments for enrolled courses
+ */
+const viewAssignments = (req, res) => {
   try {
-    const learnerId = requestObject.user.id;
+    const studentId = req.user.id;
     
-    const enrolledCourseIdList = enrollments
-      .filter(enrollmentRecord => enrollmentRecord.studentId === learnerId)
-      .map(enrollmentRecord => enrollmentRecord.courseId);
+    // Get enrolled course IDs
+    const enrolledCourseIds = enrollments
+      .filter(e => e.studentId === studentId)
+      .map(e => e.courseId);
 
-    const assignmentList = AssignmentModel.findAll()
-      .filter(assignmentRecord => enrolledCourseIdList.includes(assignmentRecord.courseId));
+    // Get assignments for enrolled courses
+    const assignments = Assignment.findAll()
+      .filter(a => enrolledCourseIds.includes(a.courseId));
 
-    responseObject.json({
+    res.json({
       success: true,
       message: 'Assignments retrieved successfully',
-      data: assignmentList
+      data: assignments
     });
-  } catch (errorObject) {
-    responseObject.status(500).json({
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: 'Failed to retrieve assignments',
-      error: errorObject.message
+      error: error.message
     });
   }
 };
 
-const submitAssignment = (requestObject, responseObject) => {
+/**
+ * Submit assignment
+ */
+const submitAssignment = (req, res) => {
   try {
-    const learnerId = requestObject.user.id;
-    const { assignmentId, content, fileUrl } = requestObject.body;
+    const studentId = req.user.id;
+    const { assignmentId, content, fileUrl } = req.body;
 
     if (!assignmentId || !content) {
-      return responseObject.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Assignment ID and content are required'
       });
     }
 
-    const assignmentRecord = AssignmentModel.findById(assignmentId);
-    if (!assignmentRecord) {
-      return responseObject.status(404).json({
+    // Check if assignment exists
+    const assignment = Assignment.findById(assignmentId);
+    if (!assignment) {
+      return res.status(404).json({
         success: false,
         message: 'Assignment not found'
       });
     }
 
-    const isEnrolledInCourse = enrollments.some(
-      enrollmentRecord => enrollmentRecord.courseId === assignmentRecord.courseId && enrollmentRecord.studentId === learnerId
+    // Check if student is enrolled in the course
+    const isEnrolled = enrollments.some(
+      e => e.courseId === assignment.courseId && e.studentId === studentId
     );
 
-    if (!isEnrolledInCourse) {
-      return responseObject.status(403).json({
+    if (!isEnrolled) {
+      return res.status(403).json({
         success: false,
         message: 'You are not enrolled in this course'
       });
     }
 
-    let submissionRecord = SubmissionModel.findByStudentAndAssignment(learnerId, assignmentId);
+    // Check if submission already exists
+    let submission = Submission.findByStudentAndAssignment(studentId, assignmentId);
     
-    if (submissionRecord) {
-      submissionRecord = SubmissionModel.update(submissionRecord.id, { content, fileUrl });
+    if (submission) {
+      // Update existing submission
+      submission = Submission.update(submission.id, { content, fileUrl });
     } else {
-      submissionRecord = SubmissionModel.create({
+      // Create new submission
+      submission = Submission.create({
         assignmentId,
-        studentId: learnerId,
+        studentId,
         content,
         fileUrl
       });
     }
 
-    responseObject.json({
+    res.json({
       success: true,
       message: 'Assignment submitted successfully'
     });
-  } catch (errorObject) {
-    responseObject.status(500).json({
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: 'Failed to submit assignment',
-      error: errorObject.message
+      error: error.message
     });
   }
 };
 
-const viewSubmissions = (requestObject, responseObject) => {
+/**
+ * View own submissions
+ */
+const viewSubmissions = (req, res) => {
   try {
-    const learnerId = requestObject.user.id;
-    const submissionList = SubmissionModel.findByStudentId(learnerId);
+    const studentId = req.user.id;
+    const submissions = Submission.findByStudentId(studentId);
 
-    responseObject.json({
+    res.json({
       success: true,
       message: 'Submissions retrieved successfully',
-      data: submissionList
+      data: submissions
     });
-  } catch (errorObject) {
-    responseObject.status(500).json({
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: 'Failed to retrieve submissions',
-      error: errorObject.message
+      error: error.message
     });
   }
 };
 
-const viewGrades = (requestObject, responseObject) => {
+/**
+ * View own grades
+ */
+const viewGrades = (req, res) => {
   try {
-    const learnerId = requestObject.user.id;
-    const gradeList = GradeModel.findByStudentId(learnerId);
+    const studentId = req.user.id;
+    const grades = Grade.findByStudentId(studentId);
 
-    responseObject.json({
+    res.json({
       success: true,
       message: 'Grades retrieved successfully',
-      data: gradeList
+      data: grades
     });
-  } catch (errorObject) {
-    responseObject.status(500).json({
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: 'Failed to retrieve grades',
-      error: errorObject.message
+      error: error.message
     });
   }
 };
@@ -147,3 +169,4 @@ module.exports = {
   viewSubmissions,
   viewGrades
 };
+
