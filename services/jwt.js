@@ -3,20 +3,10 @@ require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 
-/**
- * Generate JWT token
- * @param {Object} payload - User data to encode
- * @returns {String} JWT token
- */
 function generateToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 }
 
-/**
- * Verify JWT token
- * @param {String} token - JWT token to verify
- * @returns {Object} Decoded token payload
- */
 function verifyToken(token) {
   try {
     return jwt.verify(token, JWT_SECRET);
@@ -29,4 +19,3 @@ module.exports = {
   generateToken,
   verifyToken
 };
-

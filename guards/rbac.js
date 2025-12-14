@@ -1,7 +1,7 @@
 const fileSystem = require('fs');
 const pathUtility = require('path');
 
-const permissionsFilePath = pathUtility.join(__dirname, '..', 'permissions.json');
+const permissionsFilePath = pathUtility.join(__dirname, '..', 'config', 'permissions.json');
 let permissionConfig = {};
 
 try {

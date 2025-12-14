@@ -1,5 +1,5 @@
 const UserModel = require('../models/User');
-const { generateToken } = require('../utils/jwt');
+const { generateToken } = require('../services/jwt');
 
 const registerUser = async (requestObject, responseObject) => {
   try {
@@ -67,7 +67,7 @@ const authenticateUser = async (requestObject, responseObject) => {
 
     const fileSystem = require('fs');
     const pathUtility = require('path');
-    const usersFilePath = pathUtility.join(__dirname, '..', 'users.json');
+    const usersFilePath = pathUtility.join(__dirname, '..', 'data', 'users.json');
     
     let foundUser = null;
     
