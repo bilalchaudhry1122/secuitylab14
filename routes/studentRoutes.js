@@ -1,7 +1,7 @@
 const express = require('express');
-const routeHandler = express.Router();
-const verifyUserToken = require('../middleware/auth');
-const checkPermissions = require('../middleware/rbac');
+const router = express.Router();
+const authenticate = require('../middleware/auth');
+const authorize = require('../middleware/rbac');
 const {
   viewCourses,
   viewAssignments,
@@ -10,16 +10,23 @@ const {
   viewGrades
 } = require('../controllers/studentController');
 
-routeHandler.use(verifyUserToken);
+// All student routes require authentication
+router.use(authenticate);
 
-routeHandler.get('/courses', checkPermissions('course', 'view'), viewCourses);
+// View enrolled courses - student can view courses
+router.get('/courses', authorize('course', 'view'), viewCourses);
 
-routeHandler.get('/assignments', checkPermissions('assignment', 'view'), viewAssignments);
+// View assignments - student can view assignments
+router.get('/assignments', authorize('assignment', 'view'), viewAssignments);
 
-routeHandler.post('/assignments/submit', checkPermissions('assignment', 'submit'), submitAssignment);
+// Submit assignment - student can submit assignments
+router.post('/assignments/submit', authorize('assignment', 'submit'), submitAssignment);
 
-routeHandler.get('/submissions', checkPermissions('submission', 'view'), viewSubmissions);
+// View own submissions - student can view their submissions
+router.get('/submissions', authorize('submission', 'view'), viewSubmissions);
 
-routeHandler.get('/grades', checkPermissions('grade', 'view'), viewGrades);
+// View own grades - student can view their grades
+router.get('/grades', authorize('grade', 'view'), viewGrades);
 
-module.exports = routeHandler;
+module.exports = router;
+

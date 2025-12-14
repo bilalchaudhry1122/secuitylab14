@@ -1,70 +1,76 @@
 const fs = require('fs');
 const path = require('path');
 
-const permissionConfigPath = path.join(__dirname, '..', 'permissions.json');
-let permissionRules = {};
+// Load permissions from JSON file
+const permissionsPath = path.join(__dirname, '..', 'permissions.json');
+let permissions = {};
 
 try {
-  const permissionFileContent = fs.readFileSync(permissionConfigPath, 'utf8');
-  permissionRules = JSON.parse(permissionFileContent);
+  const permissionsData = fs.readFileSync(permissionsPath, 'utf8');
+  permissions = JSON.parse(permissionsData);
 } catch (error) {
   console.error('Error loading permissions.json:', error);
-  permissionRules = {};
+  permissions = {};
 }
 
 /**
- * Permission Check Middleware
- * Validates user permissions based on role and requested action
+ * RBAC Authorization Middleware
+ * Checks if user role has permission for the requested action
  * 
- * @param {String} resourceType - The resource name (e.g., "course", "assignment")
- * @param {String} operationType - The operation name (e.g., "create", "view", "delete")
+ * @param {String} module - The module name (e.g., "course", "assignment")
+ * @param {String} action - The action name (e.g., "create", "view", "delete")
  * @returns {Function} Express middleware function
  */
-const checkPermissions = (resourceType, operationType) => {
-  return (request, response, next) => {
+const authorize = (module, action) => {
+  return (req, res, next) => {
     try {
-      if (!request.user || !request.user.role) {
-        return response.status(401).json({
+      // Ensure user is authenticated (should be set by auth middleware)
+      if (!req.user || !req.user.role) {
+        return res.status(401).json({
           success: false,
           message: 'User not authenticated'
         });
       }
 
-      const userRoleType = request.user.role.toLowerCase();
+      const userRole = req.user.role.toLowerCase();
 
-      if (!permissionRules[resourceType]) {
-        return response.status(403).json({
+      // Check if module exists in permissions
+      if (!permissions[module]) {
+        return res.status(403).json({
           success: false,
-          message: `Resource '${resourceType}' not found in permissions`
+          message: `Module '${module}' not found in permissions`
         });
       }
 
-      if (!permissionRules[resourceType][userRoleType]) {
-        return response.status(403).json({
+      // Check if role exists for this module
+      if (!permissions[module][userRole]) {
+        return res.status(403).json({
           success: false,
-          message: `Role '${userRoleType}' not found for resource '${resourceType}'`
+          message: `Role '${userRole}' not found for module '${module}'`
         });
       }
 
-      const hasPermission = permissionRules[resourceType][userRoleType][operationType];
+      // Check if action is allowed for this role
+      const isAllowed = permissions[module][userRole][action];
 
-      if (hasPermission === undefined) {
-        return response.status(403).json({
+      if (isAllowed === undefined) {
+        return res.status(403).json({
           success: false,
-          message: `Operation '${operationType}' not defined for role '${userRoleType}' in resource '${resourceType}'`
+          message: `Action '${action}' not defined for role '${userRole}' in module '${module}'`
         });
       }
 
-      if (!hasPermission) {
-        return response.status(403).json({
+      if (!isAllowed) {
+        return res.status(403).json({
           success: false,
           error: "Access Denied"
         });
       }
 
+      // Permission granted, proceed
       next();
     } catch (error) {
-      return response.status(500).json({
+      return res.status(500).json({
         success: false,
         message: 'Authorization error',
         error: error.message
@@ -73,4 +79,5 @@ const checkPermissions = (resourceType, operationType) => {
   };
 };
 
-module.exports = checkPermissions;
+module.exports = authorize;
+
