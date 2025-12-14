@@ -1,7 +1,7 @@
 const express = require('express');
-const router = express.Router();
-const authenticate = require('../middleware/auth');
-const authorize = require('../middleware/rbac');
+const routeHandler = express.Router();
+const verifyUserToken = require('../middleware/auth');
+const checkPermissions = require('../middleware/rbac');
 const {
   createCourse,
   updateCourse,
@@ -14,25 +14,19 @@ const {
   gradeSubmission
 } = require('../controllers/teacherController');
 
-// All teacher routes require authentication
-router.use(authenticate);
+routeHandler.use(verifyUserToken);
 
-// Course routes
-router.post('/courses', authorize('course', 'create'), createCourse);
-router.get('/courses', authorize('course', 'view'), viewCourses);
-router.put('/courses/:id', authorize('course', 'update'), updateCourse);
-router.post('/courses/:courseId/students', authorize('course', 'manageStudents'), manageStudents);
+routeHandler.post('/courses', checkPermissions('course', 'create'), createCourse);
+routeHandler.get('/courses', checkPermissions('course', 'view'), viewCourses);
+routeHandler.put('/courses/:id', checkPermissions('course', 'update'), updateCourse);
+routeHandler.post('/courses/:courseId/students', checkPermissions('course', 'manageStudents'), manageStudents);
 
-// Assignment routes
-router.post('/assignments', authorize('assignment', 'create'), createAssignment);
-router.put('/assignments/:id', authorize('assignment', 'update'), updateAssignment);
-router.delete('/assignments/:id', authorize('assignment', 'delete'), deleteAssignment);
+routeHandler.post('/assignments', checkPermissions('assignment', 'create'), createAssignment);
+routeHandler.put('/assignments/:id', checkPermissions('assignment', 'update'), updateAssignment);
+routeHandler.delete('/assignments/:id', checkPermissions('assignment', 'delete'), deleteAssignment);
 
-// Submission routes
-router.get('/assignments/:assignmentId/submissions', authorize('submission', 'viewAll'), viewAllSubmissions);
+routeHandler.get('/assignments/:assignmentId/submissions', checkPermissions('submission', 'viewAll'), viewAllSubmissions);
 
-// Grade routes
-router.post('/submissions/:submissionId/grade', authorize('submission', 'grade'), gradeSubmission);
+routeHandler.post('/submissions/:submissionId/grade', checkPermissions('submission', 'grade'), gradeSubmission);
 
-module.exports = router;
-
+module.exports = routeHandler;

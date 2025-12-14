@@ -1,10 +1,8 @@
 const express = require('express');
-const router = express.Router();
+const routeHandler = express.Router();
 const { register, login } = require('../controllers/authController');
 
-// Public routes - no authentication required
-router.post('/register', register);
-router.post('/login', login);
+routeHandler.post('/register', register);
+routeHandler.post('/login', login);
 
-module.exports = router;
-
+module.exports = routeHandler;

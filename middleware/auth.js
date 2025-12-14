@@ -1,53 +1,47 @@
 const { verifyToken } = require('../utils/jwt');
 
 /**
- * Authentication Middleware
- * Extracts Bearer token → Verifies JWT → Attaches req.user.role → Rejects if token is invalid
+ * Token Verification Middleware
+ * Processes Authorization header → Validates JWT → Attaches user context → Blocks invalid tokens
  */
-const authenticate = (req, res, next) => {
+const verifyUserToken = (request, response, next) => {
   try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
+    const authorizationHeader = request.headers.authorization;
     
-    if (!authHeader) {
-      return res.status(401).json({
+    if (!authorizationHeader) {
+      return response.status(401).json({
         success: false,
         message: 'No authorization header provided'
       });
     }
 
-    // Check if it's a Bearer token
-    if (!authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+    if (!authorizationHeader.startsWith('Bearer ')) {
+      return response.status(401).json({
         success: false,
         message: 'Invalid authorization format. Use: Bearer <token>'
       });
     }
 
-    // Extract token
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const accessToken = authorizationHeader.substring(7);
 
-    if (!token) {
-      return res.status(401).json({
+    if (!accessToken) {
+      return response.status(401).json({
         success: false,
         message: 'Token not provided'
       });
     }
 
-    // Verify token
-    const decoded = verifyToken(token);
+    const decodedPayload = verifyToken(accessToken);
 
-    // Attach user info to request
-    req.user = {
-      id: decoded.id,
-      role: decoded.role,
-      email: decoded.email
+    request.user = {
+      id: decodedPayload.id,
+      role: decodedPayload.role,
+      email: decodedPayload.email
     };
 
-    // Proceed to next middleware
     next();
   } catch (error) {
-    return res.status(401).json({
+    return response.status(401).json({
       success: false,
       message: 'Invalid or expired token',
       error: error.message
@@ -55,5 +49,4 @@ const authenticate = (req, res, next) => {
   }
 };
 
-module.exports = authenticate;
-
+module.exports = verifyUserToken;
