@@ -3,9 +3,9 @@ const corsMiddleware = require('cors');
 const pathModule = require('path');
 require('dotenv').config();
 
-const authenticationRoutes = require('./endpoints/authRoutes');
-const learnerRoutes = require('./endpoints/studentRoutes');
-const instructorRoutes = require('./endpoints/teacherRoutes');
+const authenticationRoutes = require('./routes/authRoutes');
+const learnerRoutes = require('./routes/studentRoutes');
+const instructorRoutes = require('./routes/teacherRoutes');
 
 const application = expressFramework();
 const serverPort = process.env.PORT || 3000;
@@ -25,11 +25,11 @@ application.use('/api/auth', authenticationRoutes);
 application.use('/api/student', learnerRoutes);
 application.use('/api/teacher', instructorRoutes);
 
-const verifyAuth = require('./guards/auth');
-const checkPermissions = require('./guards/rbac');
-const { viewCourses, submitAssignment } = require('./handlers/studentController');
-const { createCourse } = require('./handlers/teacherController');
-const { login } = require('./handlers/authController');
+const verifyAuth = require('./middleware/auth');
+const checkPermissions = require('./middleware/rbac');
+const { viewCourses, submitAssignment } = require('./controllers/studentController');
+const { createCourse } = require('./controllers/teacherController');
+const { login } = require('./controllers/authController');
 
 application.post('/login', login);
 
