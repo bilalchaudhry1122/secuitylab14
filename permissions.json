@@ -1,0 +1,69 @@
+{
+  "course": {
+    "student": {
+      "view": true,
+      "create": false,
+      "update": false,
+      "delete": false,
+      "enroll": false,
+      "manageStudents": false
+    },
+    "teacher": {
+      "view": true,
+      "create": true,
+      "update": true,
+      "delete": false,
+      "enroll": false,
+      "manageStudents": true
+    }
+  },
+  "assignment": {
+    "student": {
+      "view": true,
+      "create": false,
+      "update": false,
+      "delete": false,
+      "submit": true
+    },
+    "teacher": {
+      "view": true,
+      "create": true,
+      "update": true,
+      "delete": true,
+      "submit": false
+    }
+  },
+  "submission": {
+    "student": {
+      "view": true,
+      "create": true,
+      "update": true,
+      "delete": false,
+      "viewAll": false,
+      "grade": false
+    },
+    "teacher": {
+      "view": true,
+      "create": false,
+      "update": false,
+      "delete": false,
+      "viewAll": true,
+      "grade": true
+    }
+  },
+  "grade": {
+    "student": {
+      "view": true,
+      "create": false,
+      "update": false,
+      "delete": false
+    },
+    "teacher": {
+      "view": true,
+      "create": true,
+      "update": true,
+      "delete": false
+    }
+  }
+}
+
