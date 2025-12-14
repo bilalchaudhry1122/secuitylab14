@@ -1,127 +1,113 @@
-const Course = require('../models/Course');
-const Assignment = require('../models/Assignment');
-const Submission = require('../models/Submission');
-const Grade = require('../models/Grade');
-const User = require('../models/User');
+const CourseModel = require('../models/Course');
+const AssignmentModel = require('../models/Assignment');
+const SubmissionModel = require('../models/Submission');
+const GradeModel = require('../models/Grade');
+const UserModel = require('../models/User');
 const { enrollments } = require('../config/database');
 
-/**
- * Create a new course
- */
-const createCourse = (req, res) => {
+const createCourse = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const { title, description } = req.body;
+    const instructorId = requestObject.user.id;
+    const { title, description } = requestObject.body;
 
     if (!title || !description) {
-      return res.status(400).json({
+      return responseObject.status(400).json({
         success: false,
         message: 'Title and description are required'
       });
     }
 
-    const course = Course.create({
+    const newCourse = CourseModel.create({
       title,
       description,
-      teacherId
+      teacherId: instructorId
     });
 
-    res.status(201).json({
+    responseObject.status(201).json({
       success: true,
       message: 'Course created successfully'
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to create course',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Update course content
- */
-const updateCourse = (req, res) => {
+const updateCourse = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const courseId = req.params.id;
-    const { title, description } = req.body;
+    const instructorId = requestObject.user.id;
+    const courseIdentifier = requestObject.params.id;
+    const { title, description } = requestObject.body;
 
-    const course = Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({
+    const courseRecord = CourseModel.findById(courseIdentifier);
+    if (!courseRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Course not found'
       });
     }
 
-    // Check if teacher owns this course
-    if (course.teacherId !== teacherId) {
-      return res.status(403).json({
+    if (courseRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only update your own courses'
       });
     }
 
-    const updatedCourse = Course.update(courseId, { title, description });
+    const updatedCourseRecord = CourseModel.update(courseIdentifier, { title, description });
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Course updated successfully',
-      data: updatedCourse
+      data: updatedCourseRecord
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to update course',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * View own courses
- */
-const viewCourses = (req, res) => {
+const viewCourses = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const courses = Course.findByTeacherId(teacherId);
+    const instructorId = requestObject.user.id;
+    const courseList = CourseModel.findByTeacherId(instructorId);
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Courses retrieved successfully',
-      data: courses
+      data: courseList
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to retrieve courses',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Manage enrolled students (add/remove)
- */
-const manageStudents = (req, res) => {
+const manageStudents = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const courseId = req.params.courseId;
-    const { action, studentId } = req.body;
+    const instructorId = requestObject.user.id;
+    const courseIdentifier = requestObject.params.courseId;
+    const { action, studentId } = requestObject.body;
 
-    const course = Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({
+    const courseRecord = CourseModel.findById(courseIdentifier);
+    if (!courseRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Course not found'
       });
     }
 
-    // Check if teacher owns this course
-    if (course.teacherId !== teacherId) {
-      return res.status(403).json({
+    if (courseRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only manage students in your own courses'
       });
@@ -129,313 +115,290 @@ const manageStudents = (req, res) => {
 
     if (action === 'enroll') {
       if (!studentId) {
-        return res.status(400).json({
+        return responseObject.status(400).json({
           success: false,
           message: 'Student ID is required'
         });
       }
 
-      const student = User.findById(studentId);
-      if (!student || student.role !== 'student') {
-        return res.status(400).json({
+      const studentRecord = UserModel.findById(studentId);
+      if (!studentRecord || studentRecord.role !== 'student') {
+        return responseObject.status(400).json({
           success: false,
           message: 'Invalid student ID'
         });
       }
 
-      const enrolled = Course.enrollStudent(courseId, studentId);
-      if (enrolled) {
-        res.json({
+      const enrollmentSuccess = CourseModel.enrollStudent(courseIdentifier, studentId);
+      if (enrollmentSuccess) {
+        responseObject.json({
           success: true,
           message: 'Student enrolled successfully'
         });
       } else {
-        res.status(400).json({
+        responseObject.status(400).json({
           success: false,
           message: 'Student is already enrolled'
         });
       }
     } else if (action === 'remove') {
       if (!studentId) {
-        return res.status(400).json({
+        return responseObject.status(400).json({
           success: false,
           message: 'Student ID is required'
         });
       }
 
-      const index = enrollments.findIndex(
-        e => e.courseId === parseInt(courseId) && e.studentId === parseInt(studentId)
+      const enrollmentIndex = enrollments.findIndex(
+        enrollmentRecord => enrollmentRecord.courseId === parseInt(courseIdentifier) && enrollmentRecord.studentId === parseInt(studentId)
       );
 
-      if (index !== -1) {
-        enrollments.splice(index, 1);
-        res.json({
+      if (enrollmentIndex !== -1) {
+        enrollments.splice(enrollmentIndex, 1);
+        responseObject.json({
           success: true,
           message: 'Student removed successfully'
         });
       } else {
-        res.status(404).json({
+        responseObject.status(404).json({
           success: false,
           message: 'Student is not enrolled in this course'
         });
       }
     } else {
-      res.status(400).json({
+      responseObject.status(400).json({
         success: false,
         message: 'Invalid action. Use "enroll" or "remove"'
       });
     }
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to manage students',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Create assignment
- */
-const createAssignment = (req, res) => {
+const createAssignment = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const { title, description, courseId, dueDate } = req.body;
+    const instructorId = requestObject.user.id;
+    const { title, description, courseId, dueDate } = requestObject.body;
 
     if (!title || !description || !courseId) {
-      return res.status(400).json({
+      return responseObject.status(400).json({
         success: false,
         message: 'Title, description, and course ID are required'
       });
     }
 
-    // Check if course exists and teacher owns it
-    const course = Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({
+    const courseRecord = CourseModel.findById(courseId);
+    if (!courseRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Course not found'
       });
     }
 
-    if (course.teacherId !== teacherId) {
-      return res.status(403).json({
+    if (courseRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only create assignments for your own courses'
       });
     }
 
-    const assignment = Assignment.create({
+    const newAssignment = AssignmentModel.create({
       title,
       description,
       courseId,
-      teacherId,
+      teacherId: instructorId,
       dueDate
     });
 
-    res.status(201).json({
+    responseObject.status(201).json({
       success: true,
       message: 'Assignment created successfully',
-      data: assignment
+      data: newAssignment
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to create assignment',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Update assignment
- */
-const updateAssignment = (req, res) => {
+const updateAssignment = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const assignmentId = req.params.id;
-    const { title, description, dueDate } = req.body;
+    const instructorId = requestObject.user.id;
+    const assignmentIdentifier = requestObject.params.id;
+    const { title, description, dueDate } = requestObject.body;
 
-    const assignment = Assignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({
+    const assignmentRecord = AssignmentModel.findById(assignmentIdentifier);
+    if (!assignmentRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Assignment not found'
       });
     }
 
-    // Check if teacher owns this assignment
-    if (assignment.teacherId !== teacherId) {
-      return res.status(403).json({
+    if (assignmentRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only update your own assignments'
       });
     }
 
-    const updatedAssignment = Assignment.update(assignmentId, {
+    const updatedAssignmentRecord = AssignmentModel.update(assignmentIdentifier, {
       title,
       description,
       dueDate
     });
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Assignment updated successfully',
-      data: updatedAssignment
+      data: updatedAssignmentRecord
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to update assignment',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Delete assignment
- */
-const deleteAssignment = (req, res) => {
+const deleteAssignment = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const assignmentId = req.params.id;
+    const instructorId = requestObject.user.id;
+    const assignmentIdentifier = requestObject.params.id;
 
-    const assignment = Assignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({
+    const assignmentRecord = AssignmentModel.findById(assignmentIdentifier);
+    if (!assignmentRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Assignment not found'
       });
     }
 
-    // Check if teacher owns this assignment
-    if (assignment.teacherId !== teacherId) {
-      return res.status(403).json({
+    if (assignmentRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only delete your own assignments'
       });
     }
 
-    Assignment.delete(assignmentId);
+    AssignmentModel.delete(assignmentIdentifier);
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Assignment deleted successfully'
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to delete assignment',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * View all student submissions for an assignment
- */
-const viewAllSubmissions = (req, res) => {
+const viewAllSubmissions = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const assignmentId = req.params.assignmentId;
+    const instructorId = requestObject.user.id;
+    const assignmentIdentifier = requestObject.params.assignmentId;
 
-    const assignment = Assignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({
+    const assignmentRecord = AssignmentModel.findById(assignmentIdentifier);
+    if (!assignmentRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Assignment not found'
       });
     }
 
-    // Check if teacher owns this assignment
-    if (assignment.teacherId !== teacherId) {
-      return res.status(403).json({
+    if (assignmentRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only view submissions for your own assignments'
       });
     }
 
-    const submissions = Submission.findByAssignmentId(assignmentId);
+    const submissionList = SubmissionModel.findByAssignmentId(assignmentIdentifier);
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Submissions retrieved successfully',
-      data: submissions
+      data: submissionList
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to retrieve submissions',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Grade a submission
- */
-const gradeSubmission = (req, res) => {
+const gradeSubmission = (requestObject, responseObject) => {
   try {
-    const teacherId = req.user.id;
-    const submissionId = req.params.submissionId;
-    const { score, feedback } = req.body;
+    const instructorId = requestObject.user.id;
+    const submissionIdentifier = requestObject.params.submissionId;
+    const { score, feedback } = requestObject.body;
 
     if (!score) {
-      return res.status(400).json({
+      return responseObject.status(400).json({
         success: false,
         message: 'Score is required'
       });
     }
 
-    const submission = Submission.findById(submissionId);
-    if (!submission) {
-      return res.status(404).json({
+    const submissionRecord = SubmissionModel.findById(submissionIdentifier);
+    if (!submissionRecord) {
+      return responseObject.status(404).json({
         success: false,
         message: 'Submission not found'
       });
     }
 
-    // Check if teacher owns the assignment
-    const assignment = Assignment.findById(submission.assignmentId);
-    if (!assignment || assignment.teacherId !== teacherId) {
-      return res.status(403).json({
+    const assignmentRecord = AssignmentModel.findById(submissionRecord.assignmentId);
+    if (!assignmentRecord || assignmentRecord.teacherId !== instructorId) {
+      return responseObject.status(403).json({
         success: false,
         message: 'You can only grade submissions for your own assignments'
       });
     }
 
-    // Check if grade already exists
-    let grade = Grade.findBySubmissionId(submissionId);
+    let gradeRecord = GradeModel.findBySubmissionId(submissionIdentifier);
 
-    if (grade) {
-      // Update existing grade
-      grade = Grade.update(grade.id, {
+    if (gradeRecord) {
+      gradeRecord = GradeModel.update(gradeRecord.id, {
         score,
         feedback,
-        gradedBy: teacherId
+        gradedBy: instructorId
       });
     } else {
-      // Create new grade
-      grade = Grade.create({
-        submissionId,
-        assignmentId: submission.assignmentId,
-        studentId: submission.studentId,
+      gradeRecord = GradeModel.create({
+        submissionId: submissionIdentifier,
+        assignmentId: submissionRecord.assignmentId,
+        studentId: submissionRecord.studentId,
         score,
         feedback,
-        gradedBy: teacherId
+        gradedBy: instructorId
       });
     }
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Submission graded successfully',
-      data: grade
+      data: gradeRecord
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Failed to grade submission',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
@@ -451,4 +414,3 @@ module.exports = {
   viewAllSubmissions,
   gradeSubmission
 };
-

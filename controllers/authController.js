@@ -1,141 +1,124 @@
-const User = require('../models/User');
+const UserModel = require('../models/User');
 const { generateToken } = require('../utils/jwt');
 
-/**
- * Register a new user
- */
-const register = async (req, res) => {
+const registerUser = async (requestObject, responseObject) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role } = requestObject.body;
 
-    // Validation
     if (!email || !password || !name) {
-      return res.status(400).json({
+      return responseObject.status(400).json({
         success: false,
         message: 'Email, password, and name are required'
       });
     }
 
-    // Check if user already exists
-    const existingUser = User.findByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({
+    const existingUserRecord = UserModel.findByEmail(email);
+    if (existingUserRecord) {
+      return responseObject.status(400).json({
         success: false,
         message: 'User with this email already exists'
       });
     }
 
-    // Validate role
-    const validRole = role && (role.toLowerCase() === 'teacher' || role.toLowerCase() === 'student')
+    const validUserRole = role && (role.toLowerCase() === 'teacher' || role.toLowerCase() === 'student')
       ? role.toLowerCase()
       : 'student';
 
-    // Create user
-    const user = await User.create({
+    const newUser = await UserModel.create({
       email,
       password,
       name,
-      role: validRole
+      role: validUserRole
     });
 
-    // Generate JWT token
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      role: user.role
+    const jwtToken = generateToken({
+      id: newUser.id,
+      email: newUser.email,
+      role: newUser.role
     });
 
-    res.status(201).json({
+    responseObject.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
-        user: user.toJSON(),
-        token
+        user: newUser.toJSON(),
+        token: jwtToken
       }
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Registration failed',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-/**
- * Login user
- */
-const login = async (req, res) => {
+const authenticateUser = async (requestObject, responseObject) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = requestObject.body;
 
-    // Validation
     if (!email || !password) {
-      return res.status(400).json({
+      return responseObject.status(400).json({
         success: false,
         message: 'Email and password are required'
       });
     }
 
-    // Try to load from users.json first
-    const fs = require('fs');
-    const path = require('path');
-    const usersPath = path.join(__dirname, '..', 'users.json');
+    const fileSystem = require('fs');
+    const pathUtility = require('path');
+    const usersFilePath = pathUtility.join(__dirname, '..', 'users.json');
     
-    let user = null;
+    let foundUser = null;
     
-    // Check if users.json exists
-    if (fs.existsSync(usersPath)) {
-      const usersData = fs.readFileSync(usersPath, 'utf8');
-      const users = JSON.parse(usersData);
-      user = users.find(u => u.email === email && u.password === password);
+    if (fileSystem.existsSync(usersFilePath)) {
+      const usersFileData = fileSystem.readFileSync(usersFilePath, 'utf8');
+      const usersArray = JSON.parse(usersFileData);
+      foundUser = usersArray.find(userRecord => userRecord.email === email && userRecord.password === password);
     }
     
-    // Fallback to User model
-    if (!user) {
-      const dbUser = User.findByEmail(email);
-      if (dbUser) {
-        const isPasswordValid = await dbUser.comparePassword(password);
-        if (isPasswordValid) {
-          user = {
-            id: dbUser.id,
-            email: dbUser.email,
-            role: dbUser.role
+    if (!foundUser) {
+      const databaseUser = UserModel.findByEmail(email);
+      if (databaseUser) {
+        const passwordMatches = await databaseUser.comparePassword(password);
+        if (passwordMatches) {
+          foundUser = {
+            id: databaseUser.id,
+            email: databaseUser.email,
+            role: databaseUser.role
           };
         }
       }
     }
 
-    if (!user) {
-      return res.status(401).json({
+    if (!foundUser) {
+      return responseObject.status(401).json({
         success: false,
         message: 'Invalid email or password'
       });
     }
 
-    // Generate JWT token
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      role: user.role
+    const accessToken = generateToken({
+      id: foundUser.id,
+      email: foundUser.email,
+      role: foundUser.role
     });
 
-    res.json({
+    responseObject.json({
       success: true,
       message: 'Login successful',
-      token: token
+      token: accessToken
     });
-  } catch (error) {
-    res.status(500).json({
+  } catch (errorObject) {
+    responseObject.status(500).json({
       success: false,
       message: 'Login failed',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
 module.exports = {
-  register,
-  login
+  register: registerUser,
+  login: authenticateUser
 };
-

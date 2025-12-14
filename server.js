@@ -1,94 +1,79 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+const expressFramework = require('express');
+const corsMiddleware = require('cors');
+const pathModule = require('path');
 require('dotenv').config();
 
-const authRoutes = require('./routes/authRoutes');
-const studentRoutes = require('./routes/studentRoutes');
-const teacherRoutes = require('./routes/teacherRoutes');
+const authenticationRoutes = require('./routes/authRoutes');
+const learnerRoutes = require('./routes/studentRoutes');
+const instructorRoutes = require('./routes/teacherRoutes');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const application = expressFramework();
+const serverPort = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+application.use(corsMiddleware());
+application.use(expressFramework.json());
+application.use(expressFramework.urlencoded({ extended: true }));
 
-// Serve static files (HTML)
-app.use(express.static(__dirname));
+application.use(expressFramework.static(__dirname));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
+application.use((request, response, nextHandler) => {
+  console.log(`${new Date().toISOString()} - ${request.method} ${request.path}`);
+  nextHandler();
 });
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/student', studentRoutes);
-app.use('/api/teacher', teacherRoutes);
+application.use('/api/auth', authenticationRoutes);
+application.use('/api/student', learnerRoutes);
+application.use('/api/teacher', instructorRoutes);
 
-// Simplified routes for lab testing
-const authenticate = require('./middleware/auth');
-const authorize = require('./middleware/rbac');
+const verifyAuth = require('./middleware/auth');
+const checkPermissions = require('./middleware/rbac');
 const { viewCourses, submitAssignment } = require('./controllers/studentController');
 const { createCourse } = require('./controllers/teacherController');
 const { login } = require('./controllers/authController');
 
-// POST /login (alias for /api/auth/login)
-app.post('/login', login);
+application.post('/login', login);
 
-// GET /courses (works for both student and teacher)
-app.get('/courses', authenticate, authorize('course', 'view'), viewCourses);
+application.get('/courses', verifyAuth, checkPermissions('course', 'view'), viewCourses);
 
-// POST /courses (teacher only)
-app.post('/courses', authenticate, authorize('course', 'create'), createCourse);
+application.post('/courses', verifyAuth, checkPermissions('course', 'create'), createCourse);
 
-// POST /assignments/submit (student only)
-app.post('/assignments/submit', authenticate, authorize('assignment', 'submit'), submitAssignment);
+application.post('/assignments/submit', verifyAuth, checkPermissions('assignment', 'submit'), submitAssignment);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
+application.get('/health', (request, response) => {
+  response.json({
     success: true,
     message: 'LMS Server is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// Root endpoint - serve HTML file
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+application.get('/', (request, response) => {
+  response.sendFile(pathModule.join(__dirname, 'index.html'));
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
+application.use((request, response) => {
+  response.status(404).json({
     success: false,
     message: 'Route not found'
   });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({
+application.use((errorObject, request, response, nextHandler) => {
+  console.error('Error:', errorObject);
+  response.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    error: process.env.NODE_ENV === 'development' ? errorObject.message : 'Something went wrong'
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`\n🚀 LMS Server is running on http://localhost:${PORT}`);
+application.listen(serverPort, () => {
+  console.log(`\n🚀 LMS Server is running on http://localhost:${serverPort}`);
   console.log(`📚 API Endpoints:`);
-  console.log(`   - Auth: http://localhost:${PORT}/api/auth`);
-  console.log(`   - Student: http://localhost:${PORT}/api/student`);
-  console.log(`   - Teacher: http://localhost:${PORT}/api/teacher`);
+  console.log(`   - Auth: http://localhost:${serverPort}/api/auth`);
+  console.log(`   - Student: http://localhost:${serverPort}/api/student`);
+  console.log(`   - Teacher: http://localhost:${serverPort}/api/teacher`);
   console.log(`\n✅ Server started successfully!\n`);
 });
 
-module.exports = app;
-
+module.exports = application;

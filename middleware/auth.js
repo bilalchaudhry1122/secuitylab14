@@ -1,59 +1,48 @@
 const { verifyToken } = require('../utils/jwt');
 
-/**
- * Authentication Middleware
- * Extracts Bearer token → Verifies JWT → Attaches req.user.role → Rejects if token is invalid
- */
-const authenticate = (req, res, next) => {
+const verifyAuth = (requestObject, responseObject, nextHandler) => {
   try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
+    const authorizationHeader = requestObject.headers.authorization;
     
-    if (!authHeader) {
-      return res.status(401).json({
+    if (!authorizationHeader) {
+      return responseObject.status(401).json({
         success: false,
         message: 'No authorization header provided'
       });
     }
 
-    // Check if it's a Bearer token
-    if (!authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+    if (!authorizationHeader.startsWith('Bearer ')) {
+      return responseObject.status(401).json({
         success: false,
         message: 'Invalid authorization format. Use: Bearer <token>'
       });
     }
 
-    // Extract token
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const tokenString = authorizationHeader.substring(7);
 
-    if (!token) {
-      return res.status(401).json({
+    if (!tokenString) {
+      return responseObject.status(401).json({
         success: false,
         message: 'Token not provided'
       });
     }
 
-    // Verify token
-    const decoded = verifyToken(token);
+    const decodedToken = verifyToken(tokenString);
 
-    // Attach user info to request
-    req.user = {
-      id: decoded.id,
-      role: decoded.role,
-      email: decoded.email
+    requestObject.user = {
+      id: decodedToken.id,
+      role: decodedToken.role,
+      email: decodedToken.email
     };
 
-    // Proceed to next middleware
-    next();
-  } catch (error) {
-    return res.status(401).json({
+    nextHandler();
+  } catch (errorObject) {
+    return responseObject.status(401).json({
       success: false,
       message: 'Invalid or expired token',
-      error: error.message
+      error: errorObject.message
     });
   }
 };
 
-module.exports = authenticate;
-
+module.exports = verifyAuth;

@@ -1,83 +1,68 @@
-const fs = require('fs');
-const path = require('path');
+const fileSystem = require('fs');
+const pathUtility = require('path');
 
-// Load permissions from JSON file
-const permissionsPath = path.join(__dirname, '..', 'permissions.json');
-let permissions = {};
+const permissionsFilePath = pathUtility.join(__dirname, '..', 'permissions.json');
+let permissionConfig = {};
 
 try {
-  const permissionsData = fs.readFileSync(permissionsPath, 'utf8');
-  permissions = JSON.parse(permissionsData);
-} catch (error) {
-  console.error('Error loading permissions.json:', error);
-  permissions = {};
+  const permissionsData = fileSystem.readFileSync(permissionsFilePath, 'utf8');
+  permissionConfig = JSON.parse(permissionsData);
+} catch (errorObject) {
+  console.error('Error loading permissions.json:', errorObject);
+  permissionConfig = {};
 }
 
-/**
- * RBAC Authorization Middleware
- * Checks if user role has permission for the requested action
- * 
- * @param {String} module - The module name (e.g., "course", "assignment")
- * @param {String} action - The action name (e.g., "create", "view", "delete")
- * @returns {Function} Express middleware function
- */
-const authorize = (module, action) => {
-  return (req, res, next) => {
+const checkPermissions = (moduleName, actionName) => {
+  return (requestObject, responseObject, nextHandler) => {
     try {
-      // Ensure user is authenticated (should be set by auth middleware)
-      if (!req.user || !req.user.role) {
-        return res.status(401).json({
+      if (!requestObject.user || !requestObject.user.role) {
+        return responseObject.status(401).json({
           success: false,
           message: 'User not authenticated'
         });
       }
 
-      const userRole = req.user.role.toLowerCase();
+      const userRoleType = requestObject.user.role.toLowerCase();
 
-      // Check if module exists in permissions
-      if (!permissions[module]) {
-        return res.status(403).json({
+      if (!permissionConfig[moduleName]) {
+        return responseObject.status(403).json({
           success: false,
-          message: `Module '${module}' not found in permissions`
+          message: `Module '${moduleName}' not found in permissions`
         });
       }
 
-      // Check if role exists for this module
-      if (!permissions[module][userRole]) {
-        return res.status(403).json({
+      if (!permissionConfig[moduleName][userRoleType]) {
+        return responseObject.status(403).json({
           success: false,
-          message: `Role '${userRole}' not found for module '${module}'`
+          message: `Role '${userRoleType}' not found for module '${moduleName}'`
         });
       }
 
-      // Check if action is allowed for this role
-      const isAllowed = permissions[module][userRole][action];
+      const hasPermission = permissionConfig[moduleName][userRoleType][actionName];
 
-      if (isAllowed === undefined) {
-        return res.status(403).json({
+      if (hasPermission === undefined) {
+        return responseObject.status(403).json({
           success: false,
-          message: `Action '${action}' not defined for role '${userRole}' in module '${module}'`
+          message: `Action '${actionName}' not defined for role '${userRoleType}' in module '${moduleName}'`
         });
       }
 
-      if (!isAllowed) {
-        return res.status(403).json({
+      if (!hasPermission) {
+        return responseObject.status(403).json({
           success: false,
           error: "Access Denied"
         });
       }
 
-      // Permission granted, proceed
-      next();
-    } catch (error) {
-      return res.status(500).json({
+      nextHandler();
+    } catch (errorObject) {
+      return responseObject.status(500).json({
         success: false,
         message: 'Authorization error',
-        error: error.message
+        error: errorObject.message
       });
     }
   };
 };
 
-module.exports = authorize;
-
+module.exports = checkPermissions;
